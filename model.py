@@ -3,6 +3,8 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+
+
 # load the data set 
 ratings_data = pd.read_csv('C:/Users/dell/Desktop/Master2022-2023/S2/Machine Learning/Projet Recommender system/ml-latest-small/ratings.csv')
 movies_data = pd.read_csv('C:/Users/dell/Desktop/Master2022-2023/S2/Machine Learning/Projet Recommender system/ml-latest-small/movies.csv')
@@ -32,10 +34,17 @@ data = pd.read_csv('C:/Users/dell/Desktop/Master2022-2023/S2/Machine Learning/Pr
 print("Data : \n", data.head())
 # basic statistics, mean, median
 print(data.describe())
-# histogram of rating distribution of all movies
+# plot number of ratings per movie
+plt.figure(figsize=(12,6))
+data.groupby('movie_title')['rating'].count().sort_values(ascending=False).head(25).plot(kind='bar')
+plt.title('Number of Ratings per Movie')
+plt.xlabel('Movie Title')
+plt.ylabel('Number of Ratings')
+plt.show()
+# plot of rating distribution of all movies
 plt.hist(data['rating'])
 plt.xlabel('Rating')
-plt.ylabel('Frequency')
+plt.ylabel('Count')
 plt.title('Distribution of Movies Ratings')
 plt.show()
 # Identify the most popular movies
@@ -44,16 +53,55 @@ print("Most popular movies : \n ", most_popular)
 # distribution of genres
 genre_counts = data['genres'].value_counts()
 print("genres : \n ", genre_counts)
+# Sort the DataFrame by ratings in descending order
+sorted_movies = data.sort_values(by='rating', ascending=False)
+# Print the sorted DataFrame
+print("sorted movies by ratings : \n ",sorted_movies)
 
-# ----------Model Implementation : --------------
+# ----------Model Implementation with knn: --------------
 from sklearn.model_selection import train_test_split
-from sklearn.metrics.pairwise import cosine_similarity
-# split the dataset in training and testing set
-train_data, test_data = train_test_split(data, test_size=0.2, random_state=42)
-print("traindata\n", train_data.columns)
-# create item-user matrix
-item_user_matrix = train_data.pivot_table(index='movie_title', columns='userId', values='rating')
-print("item-user matrice : \n", item_user_matrix)
+from sklearn.neighbors import NearestNeighbors
+from sklearn.metrics import mean_squared_error
+# Load preprocessed dataset
+data = pd.read_csv('C:/Users/dell/Desktop/Master2022-2023/S2/Machine Learning/Projet Recommender system/prepared_data.csv')
+print("Data : \n", data.head())
+# Create a pivot table for item-based collaborative filtering
+item_user_matrix = data.pivot_table(index='movieId', columns='userId', values='rating')
+# Replace missing values with mean
+item_user_matrix = item_user_matrix.apply(lambda x: x.fillna(x.mean()), axis=0)
+# Split the data into training and testing sets
+train_data, test_data = train_test_split(item_user_matrix.T.values, test_size=0.2)
+print("traindata\n : ", train_data)
+print("testndata\n : ", test_data)
+# Train the model using k nearest neighbors
+# Train the k-NN model with k=10
+k = 10
+model_knn = NearestNeighbors(metric='cosine', algorithm='brute', n_neighbors=k)
+model_knn.fit(train_data)
+# Make recommendations for a user
+user_id = 4 # choose a user ID
+user_ratings = item_user_matrix.loc[:, user_id].values.reshape(1, -1)
+distances, indices = model_knn.kneighbors(user_ratings, n_neighbors=10)
+# Print the top 10 recommended movies for the user
+movie_ids = []
+for i in range(len(indices.flatten())):
+    if i == 0:
+        print('Recommendations for user {}:'.format(user_id))
+    else:
+        movie_id = item_user_matrix.index[indices.flatten()[i]]
+        movie_ids.append(movie_id)
+# Get the movie titles for the recommended movies
+recommended_movies = data[data['movieId'].isin(movie_ids)][['movieId', 'movie_title']]
+recommended_movies = recommended_movies.drop_duplicates(subset='movieId')
+# Print the recommended movies with their IDs and titles
+print(recommended_movies.to_string(index=False))
+
+
+
+
+
+
+
 
 
 
